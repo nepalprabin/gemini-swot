@@ -41,7 +41,7 @@ ANALYSIS_COMPLETE_MESSAGE = "Analysis complete!"
 DEFAULT_DEV_KEY: Final = "your-placeholder-development-key-123"
 
 # Get secret key with warning if using default
-SECRET_KEY = os.environ.get("APP_SECRET_KEY", DEFAULT_DEV_KEY)
+SECRET_KEY = os.getenv("APP_SECRET_KEY", DEFAULT_DEV_KEY)
 
 if SECRET_KEY == DEFAULT_DEV_KEY:
     logging.warning(

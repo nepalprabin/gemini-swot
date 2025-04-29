@@ -86,7 +86,7 @@ class SwotAgentDeps:
 
 
 class SwotAnalysis(BaseModel):
-    """Represents a SWOT analysis with strengths, weaknesses, opportunities, threats, and an overall analysis."""
+    """Represents a SWOT analysis with strengths, weaknesses, opportunities, threats, competitors, and an overall analysis."""
 
     strengths: List[str] = Field(
         description="Internal strengths of the product/service"
@@ -96,6 +96,9 @@ class SwotAnalysis(BaseModel):
     )
     opportunities: List[str] = Field(description="External opportunities in the market")
     threats: List[str] = Field(description="External threats in the market")
+    competitors: str = Field(
+        description="Analysis of key direct competitors in the market", default=""
+    )
     analysis: str = Field(
         description="A comprehensive analysis explaining the SWOT findings and their implications"
     )
@@ -137,11 +140,21 @@ swot_agent = Agent(
         and evaluate external opportunities and threats based on market conditions
         and competitive landscape. Use community insights to validate findings.
 
+        Your workflow should include:
+        1. Extract content from the target website
+        2. Identify key competitors in the same industry
+        3. Analyze the competitive landscape
+        4. Gather community insights when relevant
+        5. Synthesize findings into a comprehensive SWOT analysis
+
         For each category:
         - Strengths: Focus on internal advantages and unique selling points
         - Weaknesses: Identify internal limitations and areas for improvement
         - Opportunities: Analyze external factors that could be advantageous
         - Threats: Evaluate external challenges and competitive pressures
+
+        Use the identify_competitors tool to get specific information about direct 
+        competitors before conducting the broader competitive analysis.
 
         Provide a detailed analysis that synthesizes these findings into actionable insights.
     """,
@@ -269,6 +282,58 @@ async def get_reddit_insights(
         return f"Error fetching Reddit data: {e}"
 
 
+@swot_agent.tool(prepare=report_tool_usage)
+async def identify_competitors(
+    ctx: RunContext[SwotAgentDeps],
+    product_name: str,
+    industry: str,
+    product_features: str = "",
+) -> str:
+    """Identifies direct competitors for a given product or service
+
+    Args:
+        product_name: The name of the product or service.
+        industry: The industry or market segment the product operates in.
+        product_features: Optional key features of the product to help identify similar competitors.
+
+    Returns:
+        A structured list of direct competitors with brief descriptions and comparative analysis
+    """
+    logging.info(f"Identifying direct competitors for: {product_name} in {industry}")
+
+    if not ctx.deps.client:
+        logging.info("Error: Gemini client not initialized")
+        return ""
+
+    prompt = f"""
+    You are a market research expert specializing in competitive intelligence.
+    Identify the top direct competitors for the following product:
+
+    Product Name: {product_name}
+    Industry/Market: {industry}
+    Key Features: {product_features}
+
+    For each competitor, provide the following:
+    1. Competitor Name
+    2. Brief description of their offering
+    3. Key differentiating factors
+    4. Relative market position (market leader, challenger, niche player, etc.)
+    5. Comparative strengths and weaknesses vs. the target product
+    
+    Format the information as a structured list of competitors, focusing only on the most relevant 
+    direct competitors (5-7 maximum).
+    """
+    try:
+        response = await ctx.deps.client.aio.models.generate_content(
+            model=MODEL,
+            contents=prompt,
+        )
+        return response.text
+    except Exception as e:
+        logging.info(f"Error identifying competitors: {e}")
+        return f"Error identifying competitors: {e}"
+
+
 # pylint: disable=W0718
 async def run_agent(
     url: str = ANALYZE_URL,
@@ -287,8 +352,25 @@ async def run_agent(
 
     try:
         deps.tool_history = []
+        prompt = f"""
+        Perform a comprehensive SWOT analysis for the product or service at this URL: {url}
+        
+        Follow these steps in your analysis:
+        1. Extract and analyze the content from the URL
+        2. Identify the product name, industry, and key features
+        3. Use the identify_competitors tool to find direct competitors in the market
+        4. Analyze overall competitive landscape
+        5. Gather relevant community insights
+        6. Formulate a complete SWOT analysis with:
+           - Internal strengths and weaknesses
+           - External opportunities and threats
+           - Structured competitor information
+           - Comprehensive analysis of findings
+        
+        Make sure to use all available tools in your analysis.
+        """
         result = await swot_agent.run(
-            f"Perform a comprehensive SWOT analysis for this product: {url}",
+            prompt,
             deps=deps,
         )
         logging.info(f"Agent result: {result}")
