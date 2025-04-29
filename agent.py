@@ -191,6 +191,12 @@ def validate_analysis(
             f"Analysis should be at least {min_analysis_length} characters. Currently {len(value.analysis)} characters."
         )
 
+    min_competitors_length = 2
+    if not value.competitors or len(value.competitors) < min_competitors_length:
+        issues.append(
+            f"There should be at least {min_competitors_length} competitors. Currently {len(value.competitors) if value.competitors else 0} competitors."
+        )
+
     if issues:
         logging.info(f"Validation issues: {issues}")
         raise ModelRetry("\n".join(issues))
