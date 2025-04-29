@@ -125,7 +125,7 @@ async def report_tool_usage(
 
 swot_agent = Agent(
     # model=OpenAIModel("gpt-4o", api_key=OPENAI_API_KEY),
-    model=GeminiModel("gemini-2.0-flash", provider="google-vertex"),
+    model=GeminiModel(MODEL, provider="google-vertex"),
     # model=VertexAIModel(
     #     model_name=MODEL,
     #     service_account_file=SERVICE_ACCOUNT_FILE,
@@ -203,6 +203,24 @@ def validate_analysis(
 async def fetch_website_content(_ctx: RunContext[SwotAgentDeps], url: str) -> str:
     """Fetches the HTML content of the given URL."""
     logging.info(f"Fetching website content for: {url}")
+
+    # async with async_playwright() as p:
+    #     browser = await p.chromium.launch(headless=True)
+    #     page = await browser.new_page()
+    #     response = await page.goto(
+    #         url, wait_until="domcontentloaded"
+    #     )  # Wait for JS execution
+    #     if response is None:
+    #         logging.warning(f"No response received for {url}")
+    #         return "Failed to load page."
+    #     if response.status == 404:
+    #         logging.warning(f"404 Not Found for {url}")
+    #         return "Page not found (404 error)."
+    #     content = await page.content()
+    #     await browser.close()
+    #     soup = BeautifulSoup(content, "html.parser")
+    #     return soup.get_text()
+
     async with httpx.AsyncClient(follow_redirects=True) as http_client:
         try:
             response = await http_client.get(url)
